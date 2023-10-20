@@ -1,0 +1,1 @@
+# k8s-multi-secret-to-file
