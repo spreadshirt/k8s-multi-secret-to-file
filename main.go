@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -40,24 +41,37 @@ func main() {
 	}
 
 	// parse every template file separately
+	err = parseTemplates(templatePaths, *leftLimiter, *rightLimiter, *continueOnMissingKey, *targetBasePath, *templateBasePath, secrets)
+	if err != nil {
+		log.Panicf("failed to parse template: %s", err)
+	}
+}
+
+func parseTemplates(templatePaths []string, leftLimiter string, rightLimiter string, continueOnMissingKey bool, targetBasePath string, templateBasePath string, secrets map[string]string) error {
 	for _, templatePath := range templatePaths {
-		t := template.Must(template.ParseFiles(templatePath)).Delims(*leftLimiter, *rightLimiter)
-		if !*continueOnMissingKey {
+		t, err := template.ParseFiles(templatePath)
+		if err != nil {
+			return fmt.Errorf("failed to parse template files(%q): %w", templatePath, err)
+		}
+		t.Delims(leftLimiter, rightLimiter)
+		if !continueOnMissingKey {
 			t.Option("missingkey=error")
 		}
 
-		targetPath := path.Join(*targetBasePath, strings.TrimPrefix(templatePath, *templateBasePath))
+		targetPath := path.Join(targetBasePath, strings.TrimPrefix(templatePath, templateBasePath))
 
 		err = mkDirIfNotExists(path.Dir(targetPath))
 		if err != nil {
-			log.Panicf("failed to create target dir for %q: %s", templatePath, err)
+			return fmt.Errorf("failed to create target dir for %q: %w", templatePath, err)
 		}
 		targetFile, _ := os.Create(targetPath)
-		err := t.Execute(targetFile, secrets)
+		err = t.Execute(targetFile, secrets)
 		if err != nil {
-			log.Panic(err)
+			return fmt.Errorf("failed to execute template: %w", err)
 		}
 	}
+
+	return nil
 }
 
 func getAllTemplateFilePaths(templateWalkDir string) (templateFilePaths []string, err error) {

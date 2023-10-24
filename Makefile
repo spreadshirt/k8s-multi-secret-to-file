@@ -1,7 +1,10 @@
-all: lint docker
+all: lint test docker
 
 lint:
 	golangci-lint run --timeout 5m ./... -v
+
+test:
+	go test ./... -v
 
 package:
 	CGO_ENABLED=0 go build -ldflags="-extldflags '-static'" -o k8s-multi-secret-to-file .
