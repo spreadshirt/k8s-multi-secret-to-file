@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -38,7 +37,7 @@ func Test_parseTemplates(t *testing.T) {
 			tempPaths:            []string{"examples/simple/templates/etc/config"},
 			continueOnMissingKey: false,
 			wantError:            false,
-			expectedResult:       fmt.Sprintf("test1=value1\ntest2=value2"),
+			expectedResult:       "test1=value1\ntest2=value2",
 		},
 		{
 			name: "missing secret",
@@ -57,7 +56,7 @@ func Test_parseTemplates(t *testing.T) {
 			tempPaths:            []string{"examples/simple/templates/etc/config"},
 			continueOnMissingKey: true,
 			wantError:            false,
-			expectedResult:       fmt.Sprintf("test1=value1\ntest2=<no value>"),
+			expectedResult:       "test1=value1\ntest2=<no value>",
 		},
 		{
 			name: "wrong template path",
