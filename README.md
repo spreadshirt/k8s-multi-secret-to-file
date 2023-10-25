@@ -5,7 +5,7 @@ Allows to template multiple Kubernetes [Secrets](https://kubernetes.io/docs/conc
 Whenever multiple secrets are needed inside files, e.g. when applications are using configuration files that include secrets.
 
 ## How does it work?
-Assumption is, that applications configuration (files) are stored in [Configmaps](https://kubernetes.io/docs/concepts/configuration/configmap/). Instead of directly mounting the configfile to application containers, it is mounted to the k8s-multi-secret-to-file init container.
+We assume that applications configuration (files) are stored in [Configmaps](https://kubernetes.io/docs/concepts/configuration/configmap/). Instead of directly mounting the configfile to application containers, it is mounted to the k8s-multi-secret-to-file init container.
 All secrets needed by the application are also mounted to the init container, allowing the [templating](https://pkg.go.dev/text/template) mechanism to inject secrets into application configuration. The rendered templates are available to application containers using shared volumes between init containers and regular containers inside one Pod.
 
 ## Development
