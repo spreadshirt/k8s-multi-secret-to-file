@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apache-demo
+  labels:
+    app: apache-demo
+spec:
+  selector:
+    matchLabels:
+      app: apache-demo
+  template:
+    metadata:
+      labels:
+        app: apache-demo
+    spec:
+      initContainers:
+      - env:
+        - name: SECRET_headline
+          valueFrom:
+            secretKeyRef:
+              name: apache-demo
+              key: secret-headline
+        image: ghcr.io/spreadshirt/k8s-multi-secret-to-file:latest
+        imagePullPolicy: Always
+        name: secret-init
+        volumeMounts:
+          - mountPath: /etc/rendered
+            name: init-share
+          - mountPath: /etc/templates/index.html
+            name: configmap
+            subPath: index.html
+      containers:
+        - name: apache
+          image: php:8-apache
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /var/www/html/index.html
+              name: init-share
+              subPath: index.html
+      volumes:
+        - emptyDir: { }
+          name: init-share
+        - configMap:
+            name: apache-demo-cfg
+          name: configmap
