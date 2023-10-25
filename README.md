@@ -1,5 +1,5 @@
 # k8s-multi-secret-to-file
-Allows to generate multiple Kubernetes [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) into one file which is not supported by Kubernetes.
+Allows to template multiple Kubernetes [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) into one file which is not supported by Kubernetes.
 
 ## What can this be used for?
 Whenever multiple secrets are needed inside files, e.g. when applications are using configuration files that include secrets.
