@@ -19,8 +19,9 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     data:
-      index.html: |-
-        <h1>{{ .headline }}</h1>
+      secret-config: |-
+        key1={{ .secret1 }}
+        key2={{ .secret2 }}
     ...
     ```
 
@@ -29,7 +30,8 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     data:
-      secret-headline: dmFsdWVGcm9tU2VjcmV0
+      secret1: dmFsdWVGcm9tU2VjcmV0
+      secret2: Mm5kVmFsdWVGcm9tU2VjcmV0
     ...
     ```
 
@@ -41,12 +43,6 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
       image: ghcr.io/spreadshirt/k8s-multi-secret-to-file:latest
       imagePullPolicy: Always
       name: secret-init
-      volumeMounts:
-        - mountPath: /etc/rendered
-          name: init-share
-        - mountPath: /etc/templates/index.html
-          name: configmap
-          subPath: index.html
     ...
     ```
 
@@ -55,11 +51,16 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     - env:
-      - name: SECRET_headline
+      - name: SECRET_secret1
         valueFrom:
           secretKeyRef:
             name: apache-demo
-            key: secret-headline
+            key: secret1
+      - name: SECRET_secret2
+        valueFrom:
+          secretKeyRef:
+            name: apache-demo
+            key: secret2
     ...
     ```
 
@@ -83,9 +84,9 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     volumeMounts:
       - mountPath: /etc/rendered
         name: init-share
-      - mountPath: /etc/templates/index.html
+      - mountPath: /etc/templates/path/to/secret/config
         name: configmap
-        subPath: index.html
+        subPath: secret-config
     ...
     ```
 
@@ -96,15 +97,16 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     volumeMounts:
-    - mountPath: /var/www/html/index.html
+    - mountPath: /path/to/secret/config
       name: init-share
-      subPath: index.html
+      subPath: path/to/secret/config
     ...
     ```
 
 8. deploy the application and check the rendered file inside the application container 
 
     ```sh
-    $ kubectl exec <POD_NAME> -c apache -- cat /var/www/html/index.html
-    <h1>valueFromSecret</h1>
+    $ kubectl exec apache-demo-8479b98dd4-82jnn -c apache -- cat /path/to/secret/config
+   key1=valueFromSecret
+   key2=2ndValueFromSecret
     ```

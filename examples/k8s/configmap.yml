@@ -3,5 +3,6 @@ kind: ConfigMap
 metadata:
   name: apache-demo-cfg
 data:
-  index.html: |-
-    <h1>{{ .headline }}</h1>
+  secret-config: |-
+    key1={{ .secret1 }}
+    key2={{ .secret2 }}

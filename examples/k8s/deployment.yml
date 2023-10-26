@@ -15,29 +15,34 @@ spec:
     spec:
       initContainers:
       - env:
-        - name: SECRET_headline
+        - name: SECRET_secret1
           valueFrom:
             secretKeyRef:
               name: apache-demo
-              key: secret-headline
+              key: secret1
+        - name: SECRET_secret2
+          valueFrom:
+            secretKeyRef:
+              name: apache-demo
+              key: secret2
         image: ghcr.io/spreadshirt/k8s-multi-secret-to-file:latest
         imagePullPolicy: Always
         name: secret-init
         volumeMounts:
           - mountPath: /etc/rendered
             name: init-share
-          - mountPath: /etc/templates/index.html
+          - mountPath: /etc/templates/path/to/secret/config
             name: configmap
-            subPath: index.html
+            subPath: secret-config
       containers:
         - name: apache
           image: php:8-apache
           ports:
             - containerPort: 80
           volumeMounts:
-            - mountPath: /var/www/html/index.html
-              name: init-share
-              subPath: index.html
+          - mountPath: /path/to/secret/config
+            name: init-share
+            subPath: path/to/secret/config
       volumes:
         - emptyDir: { }
           name: init-share
