@@ -22,7 +22,7 @@ func Test_parseTemplates(t *testing.T) {
 	})
 	tests := []struct {
 		name                 string
-		secrets              map[string]string
+		secrets              map[string]map[string]string
 		tempPaths            []string
 		continueOnMissingKey bool
 		wantError            bool
@@ -30,9 +30,11 @@ func Test_parseTemplates(t *testing.T) {
 	}{
 		{
 			name: "working example",
-			secrets: map[string]string{
-				"TEST1": "value1",
-				"TEST2": "value2",
+			secrets: map[string]map[string]string{
+				"example": {
+					"TEST1": "value1",
+					"TEST2": "value2",
+				},
 			},
 			tempPaths:            []string{"examples/simple/templates/etc/config"},
 			continueOnMissingKey: false,
@@ -41,8 +43,10 @@ func Test_parseTemplates(t *testing.T) {
 		},
 		{
 			name: "missing secret",
-			secrets: map[string]string{
-				"TEST1": "value1",
+			secrets: map[string]map[string]string{
+				"example": {
+					"TEST1": "value1",
+				},
 			},
 			tempPaths:            []string{"examples/simple/templates/etc/config"},
 			continueOnMissingKey: false,
@@ -50,8 +54,10 @@ func Test_parseTemplates(t *testing.T) {
 		},
 		{
 			name: "missing secret with continue",
-			secrets: map[string]string{
-				"TEST1": "value1",
+			secrets: map[string]map[string]string{
+				"example": {
+					"TEST1": "value1",
+				},
 			},
 			tempPaths:            []string{"examples/simple/templates/etc/config"},
 			continueOnMissingKey: true,
@@ -60,9 +66,11 @@ func Test_parseTemplates(t *testing.T) {
 		},
 		{
 			name: "wrong template path",
-			secrets: map[string]string{
-				"TEST1": "value1",
-				"TEST2": "value2",
+			secrets: map[string]map[string]string{
+				"example": {
+					"TEST1": "value1",
+					"TEST2": "value2",
+				},
 			},
 			tempPaths:            []string{"examples/simple/templates/etc/config12345"},
 			continueOnMissingKey: false,
@@ -89,16 +97,22 @@ func Test_parseTemplates(t *testing.T) {
 	}
 }
 
-func Test_getSecretsFromEnv(t *testing.T) {
-	// prepare envs
-	_ = os.Setenv("TEST1", "value1")
-	_ = os.Setenv("SECRET_TEST1", "secretValue1")
-
-	wantedResult := map[string]string{
-		"TEST1": "secretValue1",
+func Test_getSecretsFromFiles(t *testing.T) {
+	secrets, err := getSecretsFromFiles("tests/secrets")
+	if err != nil {
+		t.Errorf("failed to get secrets from files: %s", err)
 	}
-	if got := getSecretsFromEnv(SecretPrefix); !reflect.DeepEqual(got, wantedResult) {
-		t.Errorf("getSecretsFromEnv() = %v, want %v", got, wantedResult)
+	if secrets["sec1"]["key1"] != "thisisavalue" {
+		t.Errorf("failed to map sec1[key1]: thisisavalue != %s", secrets["sec1"]["key1"])
+	}
+	if secrets["sec1"]["key2"] != "thisisanothervalue" {
+		t.Errorf("failed to map sec1[key2]: thisisanothervalue != %s", secrets["sec1"]["key2"])
+	}
+	if secrets["sec2"]["key1"] != "thisisjustavalue" {
+		t.Errorf("failed to map sec2[key1]: thisisjustavalue != %s", secrets["sec2"]["key1"])
+	}
+	if secrets["sec2"]["key2"] != "thisisjustanothervalue" {
+		t.Errorf("failed to map sec2[key2]: thisisjustanothervalue != %s", secrets["sec2"]["key2"])
 	}
 }
 

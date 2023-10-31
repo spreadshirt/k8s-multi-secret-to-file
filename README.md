@@ -9,7 +9,18 @@ We assume that applications configuration (files) are stored in [Configmaps](htt
 All secrets needed by the application are also mounted to the init container, allowing the [templating](https://pkg.go.dev/text/template) mechanism to inject secrets into application configuration. The rendered templates are available to application containers using shared volumes between init containers and regular containers inside one Pod.
 
 ## Development
-The example inside `examples/simple` can be used for development when operating locally.
+The example inside `examples/simple` can be used for development when operating locally. Example docker command for local use is:
+`docker run -v $(pwd)/tests/secrets:/etc/secrets -v $(pwd)/examples/simple/templates:/etc/templates -v $(pwd)/examples/rendered:/etc/rendered docker.io/library/k8s-multi-secret-to-file:local`
+Make sure the directory mounted to `/etc/rendered` already exists.
+### CLI parameters
+| Parameter               | Default value  | Description                                                                                                                          |
+|-------------------------|:--------------:|--------------------------------------------------------------------------------------------------------------------------------------|
+| continue-on-missing-key |     false      | Templating of configfiles fails if a (secret) key is missing. This flag allows to continue on missing keys.                          |
+| left-limiter            |       {{       | Left limiter for internal templating. Change if this limiter conflicts with your config format.                                      |
+| right-limiter           |       }}       | Right limiter for internal templating. Change if this limiter conflicts with your config format.                                     |
+| secret-path           |  /etc/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
+| target-base-dir           | /etc/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
+| template-base-dir           | /etc/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
 
 ## Setup
 A working example can be found in `examples/k8s`. The files inside manifests directory can be deployed to a Kubernetes cluster.
@@ -46,21 +57,24 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ...
     ```
 
-4. provide secrets as environment variables to the init container. Envs must be prefixed (default: `SECRET_`)
-
+4. provide secrets as files to the init container. `/etc/secrets` is the default secret path inside the init-container. For each Secret, configure the volumes:
     ```yaml
     ...
-    - env:
-      - name: SECRET_secret1
-        valueFrom:
-          secretKeyRef:
-            name: apache-demo
-            key: secret1
-      - name: SECRET_secret2
-        valueFrom:
-          secretKeyRef:
-            name: apache-demo
-            key: secret2
+    volumes:
+      - name: apache-demo
+        secret:
+          defaultMode: 420
+          secretName: apache-demo
+    ...
+    ```
+   
+   and the volumeMounts:
+    ```yaml
+    ...
+    volumeMounts:
+      - mountPath: /etc/secrets/apache-demo
+        name: apache-demo
+        readOnly: true
     ...
     ```
 
