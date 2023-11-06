@@ -4,5 +4,5 @@ metadata:
   name: apache-demo-cfg
 data:
   secret-config: |-
-    key1={{ getValueByOrderedKeys (index .Secrets "apache-demo") "secret1" }}
+    key1={{ getValueByFirstMatchingKey (index .Secrets "apache-demo") "secret1" }}
     key2={{ index .Secrets "apache-demo" "secret2" }}

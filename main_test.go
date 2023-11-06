@@ -128,7 +128,7 @@ func Test_getAllTemplateFilePaths(t *testing.T) {
 	}
 }
 
-func Test_getValueByOrderedKeys(t *testing.T) {
+func Test_getValueByFirstMatchingKey(t *testing.T) {
 	tests := []struct {
 		name      string
 		stringMap map[string]string
@@ -174,13 +174,13 @@ func Test_getValueByOrderedKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getValueByOrderedKeys(tt.stringMap, tt.keys...)
+			got, err := getValueByFirstMatchingKey(tt.stringMap, tt.keys...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getValueByOrderedKeys() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("getValueByFirstMatchingKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getValueByOrderedKeys() got = %v, want %v", got, tt.want)
+				t.Errorf("getValueByFirstMatchingKey() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

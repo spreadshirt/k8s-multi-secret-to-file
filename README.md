@@ -13,14 +13,14 @@ The example inside `examples/simple` can be used for development when operating 
 `docker run -v $(pwd)/tests/secrets:/var/run/secrets/spreadgroup.com/multi-secret/secrets -v $(pwd)/examples/simple/templates:/var/run/secrets/spreadgroup.com/multi-secret/templates -v $(pwd)/examples/rendered:/var/run/secrets/spreadgroup.com/multi-secret/rendered docker.io/library/k8s-multi-secret-to-file:local`
 Make sure the directory mounted to `/var/run/secrets/spreadgroup.com/multi-secret/rendered` already exists.
 ### CLI parameters
-| Parameter               | Default value  | Description                                                                                                                          |
-|-------------------------|:--------------:|--------------------------------------------------------------------------------------------------------------------------------------|
-| continue-on-missing-key |     false      | Templating of configfiles fails if a (secret) key is missing. This flag allows to continue on missing keys.                          |
-| left-delimiter          |       {{       | Left delimiter for internal templating. Change if this delimiter conflicts with your config format.                                  |
-| right-delimiter         |       }}       | Right delimiter for internal templating. Change if this delimiter conflicts with your config format.                                 |
-| secret-path             |  /etc/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
-| target-base-dir         | /etc/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
-| template-base-dir       | /etc/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
+| Parameter               |                      Default value                      | Description                                                                                                                          |
+|-------------------------|:-------------------------------------------------------:|--------------------------------------------------------------------------------------------------------------------------------------|
+| continue-on-missing-key |                          false                          | Templating of configfiles fails if a (secret) key is missing. This flag allows to continue on missing keys.                          |
+| left-delimiter          |                           {{                            | Left delimiter for internal templating. Change if this delimiter conflicts with your config format.                                  |
+| right-delimiter         |                           }}                            | Right delimiter for internal templating. Change if this delimiter conflicts with your config format.                                 |
+| secret-path             |  /var/run/secrets/spreadgroup.com/multi-secret/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
+| target-base-dir         | /var/run/secrets/spreadgroup.com/multi-secret/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
+| template-base-dir       | /var/run/secrets/spreadgroup.com/multi-secret/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
 
 ## Setup
 A working example can be found in `examples/k8s`. The files inside manifests directory can be deployed to a Kubernetes cluster.
@@ -126,7 +126,7 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```
    
 ## Advanced features
-### getValueByOrderedKeys
+### getValueByFirstMatchingKey
 This extension allows you to use dynamic keys in your secrets, which could happen if you use an external Secret operator for example.
 
 When is this useful? E.g. if you use keys inside Secrets to represent some kind of hierarchical configuration:
@@ -136,5 +136,5 @@ value_aws: aws-specific-value
 value_azure: azure-specific-value
 ```
 
-Use the following line to access it: `value={{ getValueByOrderedKeys (index .Secrets "secretValues") "value_aws" "value" }}`
+Use the following line to access it: `value={{ getValueByFirstMatchingKey (index .Secrets "secretValues") "value_aws" "value" }}`
 This will return the value for the first matching key in `.Secrets.secretValues`, `aws-specific-value` but would fall back to `my-value` in case it does not find a value for key `value_aws`.

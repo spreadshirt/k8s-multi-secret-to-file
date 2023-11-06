@@ -52,7 +52,7 @@ func main() {
 
 func renderSecretsIntoTemplates(templatePaths []string, leftDelimiter string, rightDelimiter string, continueOnMissingKey bool, targetBasePath string, templateBasePath string, secrets map[string]map[string]string) error {
 	funcMap := template.FuncMap{
-		"getValueByOrderedKeys": getValueByOrderedKeys,
+		"getValueByFirstMatchingKey": getValueByFirstMatchingKey,
 	}
 	for _, templatePath := range templatePaths {
 		t, err := template.New(path.Base(templatePath)).Funcs(funcMap).ParseFiles(templatePath)
@@ -127,7 +127,7 @@ func getSecretsFromFiles(secretsPath string) (map[string]map[string]string, erro
 	if err != nil {
 		return secrets, fmt.Errorf("failed to get secrets from files: %w", err)
 	}
-	return secrets, err
+	return secrets, nil
 }
 
 func isDirectory(path string) bool {
@@ -150,7 +150,7 @@ func mkDirIfNotExists(path string) error {
 	return nil
 }
 
-func getValueByOrderedKeys(stringMap map[string]string, keys ...string) (string, error) {
+func getValueByFirstMatchingKey(stringMap map[string]string, keys ...string) (string, error) {
 	for _, key := range keys {
 		val, ok := stringMap[key]
 		if ok {
