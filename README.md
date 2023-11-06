@@ -124,3 +124,17 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
    key1=valueFromSecret
    key2=2ndValueFromSecret
     ```
+   
+## Advanced features
+### getValueByOrderedKeys
+This extension allows you to use dynamic keys in your secrets, which could happen if you use an external Secret operator for example.
+
+When is this useful? E.g. if you use keys inside Secrets to represent some kind of hierarchical configuration:
+```yaml
+value: my-value
+value_aws: aws-specific-value
+value_azure: azure-specific-value
+```
+
+Use the following line to access it: `value={{ getValueByOrderedKeys (index .Secrets "secretValues") "value_aws" "value" }}`
+This will return the value for the first matching key in `.Secrets.secretValues`, `aws-specific-value` but would fall back to `my-value` in case it does not find a value for key `value_aws`.

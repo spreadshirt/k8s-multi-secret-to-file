@@ -1,2 +1,2 @@
-test1={{ .Secrets.example.TEST1 }}
+test1={{ getValueByOrderedKeys (index .Secrets "example") "notExistingKey" "TEST1" }}
 test2={{ .Secrets.example.TEST2 }}

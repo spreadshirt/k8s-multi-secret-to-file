@@ -127,3 +127,61 @@ func Test_getAllTemplateFilePaths(t *testing.T) {
 		t.Errorf("getAllTemplateFilePaths() = %v, want %v", tempPaths, wantedResult)
 	}
 }
+
+func Test_getValueByOrderedKeys(t *testing.T) {
+	tests := []struct {
+		name      string
+		stringMap map[string]string
+		keys      []string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "one-match",
+			stringMap: map[string]string{"key1": "val1"},
+			keys:      []string{"key1"},
+			want:      "val1",
+			wantErr:   false,
+		},
+		{
+			name:      "match-first",
+			stringMap: map[string]string{"key1": "val1", "key2": "val2"},
+			keys:      []string{"key1"},
+			want:      "val1",
+			wantErr:   false,
+		},
+		{
+			name:      "match-second",
+			stringMap: map[string]string{"key1": "val1", "key2": "val2"},
+			keys:      []string{"key2"},
+			want:      "val2",
+			wantErr:   false,
+		},
+		{
+			name:      "skip-first-match-second",
+			stringMap: map[string]string{"key1": "val1", "key2": "val2"},
+			keys:      []string{"key3", "key2"},
+			want:      "val2",
+			wantErr:   false,
+		},
+		{
+			name:      "key-not-found",
+			stringMap: map[string]string{"key1": "val1", "key2": "val2"},
+			keys:      []string{"key3"},
+			want:      "",
+			wantErr:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getValueByOrderedKeys(tt.stringMap, tt.keys...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getValueByOrderedKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getValueByOrderedKeys() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

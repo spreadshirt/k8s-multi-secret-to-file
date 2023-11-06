@@ -51,8 +51,11 @@ func main() {
 }
 
 func renderSecretsIntoTemplates(templatePaths []string, leftDelimiter string, rightDelimiter string, continueOnMissingKey bool, targetBasePath string, templateBasePath string, secrets map[string]map[string]string) error {
+	funcMap := template.FuncMap{
+		"getValueByOrderedKeys": getValueByOrderedKeys,
+	}
 	for _, templatePath := range templatePaths {
-		t, err := template.ParseFiles(templatePath)
+		t, err := template.New(path.Base(templatePath)).Funcs(funcMap).ParseFiles(templatePath)
 		if err != nil {
 			return fmt.Errorf("failed to parse template files(%q): %w", templatePath, err)
 		}
@@ -67,8 +70,11 @@ func renderSecretsIntoTemplates(templatePaths []string, leftDelimiter string, ri
 		if err != nil {
 			return fmt.Errorf("failed to create target dir for %q: %w", templatePath, err)
 		}
-		targetFile, _ := os.Create(targetPath)
-		err = t.Execute(targetFile, struct {
+		targetFile, err := os.Create(targetPath)
+		if err != nil {
+			return fmt.Errorf("failed to create target file at %q: %w", targetPath, err)
+		}
+		err = t.Funcs(funcMap).Execute(targetFile, struct {
 			Secrets map[string]map[string]string
 		}{
 			Secrets: secrets,
@@ -142,4 +148,14 @@ func mkDirIfNotExists(path string) error {
 	}
 
 	return nil
+}
+
+func getValueByOrderedKeys(stringMap map[string]string, keys ...string) (string, error) {
+	for _, key := range keys {
+		val, ok := stringMap[key]
+		if ok {
+			return val, nil
+		}
+	}
+	return "", fmt.Errorf("no matching key found in secret")
 }
