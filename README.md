@@ -9,19 +9,30 @@ We assume that applications configuration (files) are stored in [Configmaps](htt
 All secrets needed by the application are also mounted to the init container, allowing the [templating](https://pkg.go.dev/text/template) mechanism to inject secrets into application configuration. The rendered templates are available to application containers using shared volumes between init containers and regular containers inside one Pod.
 
 ## Development
-The example inside `examples/simple` can be used for development when operating locally.
+The example inside `examples/simple` can be used for development when operating locally. Example docker command for local use is:
+`docker run -v $(pwd)/tests/secrets:/var/run/secrets/spreadgroup.com/multi-secret/secrets -v $(pwd)/examples/simple/templates:/var/run/secrets/spreadgroup.com/multi-secret/templates -v $(pwd)/examples/rendered:/var/run/secrets/spreadgroup.com/multi-secret/rendered docker.io/library/k8s-multi-secret-to-file:local`
+Make sure the directory mounted to `/var/run/secrets/spreadgroup.com/multi-secret/rendered` already exists.
+### CLI parameters
+| Parameter               |                      Default value                      | Description                                                                                                                          |
+|-------------------------|:-------------------------------------------------------:|--------------------------------------------------------------------------------------------------------------------------------------|
+| continue-on-missing-key |                          false                          | Templating of configfiles fails if a (secret) key is missing. This flag allows to continue on missing keys.                          |
+| left-delimiter          |                           {{                            | Left delimiter for internal templating. Change if this delimiter conflicts with your config format.                                  |
+| right-delimiter         |                           }}                            | Right delimiter for internal templating. Change if this delimiter conflicts with your config format.                                 |
+| secret-path             |  /var/run/secrets/spreadgroup.com/multi-secret/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
+| target-base-dir         | /var/run/secrets/spreadgroup.com/multi-secret/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
+| template-base-dir       | /var/run/secrets/spreadgroup.com/multi-secret/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
 
 ## Setup
 A working example can be found in `examples/k8s`. The files inside manifests directory can be deployed to a Kubernetes cluster.
 
-1. wrap a configfile inside a configmap, and use `{{ .secretKey }}` as placeholder
+1. wrap a configfile inside a configmap, and use `{{ index .Secrets "<secret name>" "<secret key>" }}` as placeholder. (using the `index` function here to allow special chars in secret names and keys)
 
     ```yaml
     ...
     data:
       secret-config: |-
-        key1={{ .secret1 }}
-        key2={{ .secret2 }}
+        key1={{ index .Secrets "apache-demo" "secret1" }}
+        key2={{ index .Secrets "apache-demo" "secret2" }}
     ...
     ```
 
@@ -46,21 +57,24 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ...
     ```
 
-4. provide secrets as environment variables to the init container. Envs must be prefixed (default: `SECRET_`)
-
+4. provide secrets as files to the init container. `/var/run/secrets/spreadgroup.com/multi-secret/secrets` is the default secret path inside the init-container. For each Secret, configure the volumes:
     ```yaml
     ...
-    - env:
-      - name: SECRET_secret1
-        valueFrom:
-          secretKeyRef:
-            name: apache-demo
-            key: secret1
-      - name: SECRET_secret2
-        valueFrom:
-          secretKeyRef:
-            name: apache-demo
-            key: secret2
+    volumes:
+      - name: apache-demo
+        secret:
+          defaultMode: 420
+          secretName: apache-demo
+    ...
+    ```
+   
+   and the volumeMounts:
+    ```yaml
+    ...
+    volumeMounts:
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/secrets/apache-demo
+        name: apache-demo
+        readOnly: true
     ...
     ```
 
@@ -82,15 +96,15 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     volumeMounts:
-      - mountPath: /etc/rendered
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/rendered
         name: init-share
-      - mountPath: /etc/templates/path/to/secret/config
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/templates/path/to/secret/config
         name: configmap
         subPath: secret-config
     ...
     ```
 
-    `/etc/templates` and `/etc/rendered` are the default paths for templates and the results, this can be configured, if necessary
+    `/var/run/secrets/spreadgroup.com/multi-secret/templates` and `/var/run/secrets/spreadgroup.com/multi-secret/rendered` are the default paths for templates and the results, this can be configured, if necessary
 
 7. mount the rendered config file to the application container
 
@@ -110,3 +124,17 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
    key1=valueFromSecret
    key2=2ndValueFromSecret
     ```
+   
+## Advanced features
+### getValueByFirstMatchingKey
+This extension allows you to use dynamic keys in your secrets, which could happen if you use an external Secret operator for example.
+
+When is this useful? E.g. if you use keys inside Secrets to represent some kind of hierarchical configuration:
+```yaml
+value: my-value
+value_aws: aws-specific-value
+value_azure: azure-specific-value
+```
+
+Use the following line to access it: `value={{ getValueByFirstMatchingKey (index .Secrets "secretValues") "value_aws" "value" }}`
+This will return the value for the first matching key in `.Secrets.secretValues`, `aws-specific-value` but would fall back to `my-value` in case it does not find a value for key `value_aws`.

@@ -13,26 +13,29 @@ import (
 )
 
 const (
-	LeftLimiter      = "{{"
-	RightLimiter     = "}}"
-	SecretPrefix     = "SECRET_"
-	TargetBasePath   = "/etc/rendered"
-	TemplateBasePath = "/etc/templates"
+	LeftDelimiter    = "{{"
+	RightDelimiter   = "}}"
+	SecretPath       = "/var/run/secrets/spreadgroup.com/multi-secret/secrets"
+	TargetBasePath   = "/var/run/secrets/spreadgroup.com/multi-secret/rendered"
+	TemplateBasePath = "/var/run/secrets/spreadgroup.com/multi-secret/templates"
 )
 
 func main() {
 
 	// definition of cli interface
 	continueOnMissingKey := flag.Bool("continue-on-missing-key", false, "enable to not stop when hitting missing keys during templating")
-	leftLimiter := flag.String("left-limiter", LeftLimiter, "left limiter for internal go templating")
-	rightLimiter := flag.String("right-limiter", RightLimiter, "right limiter for internal go templating")
-	secretEnvPrefix := flag.String("secret-env-prefix", SecretPrefix, "prefix for the environment variables containing secrets")
+	leftDelimiter := flag.String("left-delimiter", LeftDelimiter, "left delimiter for internal go templating")
+	rightDelimiter := flag.String("right-delimiter", RightDelimiter, "right delimiter for internal go templating")
+	secretPath := flag.String("secret-path", SecretPath, "absolute path to directory where secrets are mounted")
 	targetBasePath := flag.String("target-base-dir", TargetBasePath, "absolute path to directory containing rendered template files")
 	templateBasePath := flag.String("template-base-dir", TemplateBasePath, "absolute path to directory containing template files")
 	flag.Parse()
 
 	// retrieve secrets
-	secrets := getSecretsFromEnv(*secretEnvPrefix)
+	secrets, err := getSecretsFromFiles(*secretPath)
+	if err != nil {
+		log.Panicf("failed to get secrets from files: %s", err)
+	}
 
 	// detect templates
 	templatePaths, err := getAllTemplateFilePaths(*templateBasePath)
@@ -41,19 +44,22 @@ func main() {
 	}
 
 	// parse every template file separately
-	err = parseTemplates(templatePaths, *leftLimiter, *rightLimiter, *continueOnMissingKey, *targetBasePath, *templateBasePath, secrets)
+	err = renderSecretsIntoTemplates(templatePaths, *leftDelimiter, *rightDelimiter, *continueOnMissingKey, *targetBasePath, *templateBasePath, secrets)
 	if err != nil {
 		log.Panicf("failed to parse template: %s", err)
 	}
 }
 
-func parseTemplates(templatePaths []string, leftLimiter string, rightLimiter string, continueOnMissingKey bool, targetBasePath string, templateBasePath string, secrets map[string]string) error {
+func renderSecretsIntoTemplates(templatePaths []string, leftDelimiter string, rightDelimiter string, continueOnMissingKey bool, targetBasePath string, templateBasePath string, secrets map[string]map[string]string) error {
+	funcMap := template.FuncMap{
+		"getValueByFirstMatchingKey": getValueByFirstMatchingKey,
+	}
 	for _, templatePath := range templatePaths {
-		t, err := template.ParseFiles(templatePath)
+		t, err := template.New(path.Base(templatePath)).Funcs(funcMap).ParseFiles(templatePath)
 		if err != nil {
 			return fmt.Errorf("failed to parse template files(%q): %w", templatePath, err)
 		}
-		t.Delims(leftLimiter, rightLimiter)
+		t.Delims(leftDelimiter, rightDelimiter)
 		if !continueOnMissingKey {
 			t.Option("missingkey=error")
 		}
@@ -64,8 +70,15 @@ func parseTemplates(templatePaths []string, leftLimiter string, rightLimiter str
 		if err != nil {
 			return fmt.Errorf("failed to create target dir for %q: %w", templatePath, err)
 		}
-		targetFile, _ := os.Create(targetPath)
-		err = t.Execute(targetFile, secrets)
+		targetFile, err := os.Create(targetPath)
+		if err != nil {
+			return fmt.Errorf("failed to create target file at %q: %w", targetPath, err)
+		}
+		err = t.Funcs(funcMap).Execute(targetFile, struct {
+			Secrets map[string]map[string]string
+		}{
+			Secrets: secrets,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to execute template: %w", err)
 		}
@@ -87,17 +100,34 @@ func getAllTemplateFilePaths(templateWalkDir string) (templateFilePaths []string
 	return templateFilePaths, err
 }
 
-func getSecretsFromEnv(prefix string) map[string]string {
-	var secrets = make(map[string]string)
-	for _, envVar := range os.Environ() {
-		if strings.HasPrefix(envVar, prefix) {
-			parts := strings.SplitN(envVar, "=", 2)
-			if len(parts) == 2 {
-				secrets[strings.TrimPrefix(parts[0], prefix)] = parts[1]
-			}
+func getSecretsFromFiles(secretsPath string) (map[string]map[string]string, error) {
+	secrets := make(map[string]map[string]string)
+	err := filepath.WalkDir(secretsPath, func(filePath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if strings.HasPrefix(d.Name(), ".") || d.IsDir() {
+			return nil
+		}
+
+		secret, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read secret from file %q: %w", filePath, err)
+		}
+		keyName := path.Base(filePath)
+		secretName := path.Base(path.Dir(filePath))
+		_, ok := secrets[secretName]
+		if !ok {
+			secrets[secretName] = make(map[string]string)
+		}
+		secrets[secretName][keyName] = string(secret)
+
+		return nil
+	})
+	if err != nil {
+		return secrets, fmt.Errorf("failed to get secrets from files: %w", err)
 	}
-	return secrets
+	return secrets, nil
 }
 
 func isDirectory(path string) bool {
@@ -118,4 +148,14 @@ func mkDirIfNotExists(path string) error {
 	}
 
 	return nil
+}
+
+func getValueByFirstMatchingKey(stringMap map[string]string, keys ...string) (string, error) {
+	for _, key := range keys {
+		val, ok := stringMap[key]
+		if ok {
+			return val, nil
+		}
+	}
+	return "", fmt.Errorf("no matching key found in secret")
 }

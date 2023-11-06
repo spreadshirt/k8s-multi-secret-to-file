@@ -1,2 +1,2 @@
-test1={{ .TEST1 }}
-test2={{ .TEST2 }}
+test1={{ getValueByFirstMatchingKey (index .Secrets "example") "notExistingKey" "TEST1" }}
+test2={{ .Secrets.example.TEST2 }}
