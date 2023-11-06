@@ -14,26 +14,18 @@ spec:
         app: apache-demo
     spec:
       initContainers:
-      - env:
-        - name: SECRET_secret1
-          valueFrom:
-            secretKeyRef:
-              name: apache-demo
-              key: secret1
-        - name: SECRET_secret2
-          valueFrom:
-            secretKeyRef:
-              name: apache-demo
-              key: secret2
-        image: ghcr.io/spreadshirt/k8s-multi-secret-to-file:latest
+      - image: ghcr.io/spreadshirt/k8s-multi-secret-to-file:latest
         imagePullPolicy: Always
         name: secret-init
         volumeMounts:
-          - mountPath: /etc/rendered
+          - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/rendered
             name: init-share
-          - mountPath: /etc/templates/path/to/secret/config
+          - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/templates/path/to/secret/config
             name: configmap
             subPath: secret-config
+          - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/secrets/apache-demo
+            name: apache-demo
+            readOnly: true
       containers:
         - name: apache
           image: php:8-apache
@@ -49,3 +41,7 @@ spec:
         - configMap:
             name: apache-demo-cfg
           name: configmap
+        - name: apache-demo
+          secret:
+            defaultMode: 420
+            secretName: apache-demo

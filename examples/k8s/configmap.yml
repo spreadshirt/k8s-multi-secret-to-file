@@ -4,5 +4,5 @@ metadata:
   name: apache-demo-cfg
 data:
   secret-config: |-
-    key1={{ .secret1 }}
-    key2={{ .secret2 }}
+    key1={{ index .Secrets "apache-demo" "secret1" }}
+    key2={{ index .Secrets "apache-demo" "secret2" }}

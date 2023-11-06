@@ -79,9 +79,9 @@ func Test_parseTemplates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseTemplates(tt.tempPaths, LeftLimiter, RightLimiter, tt.continueOnMissingKey, testdir, tempBasePath, tt.secrets)
+			got := renderSecretsIntoTemplates(tt.tempPaths, LeftDelimiter, RightDelimiter, tt.continueOnMissingKey, testdir, tempBasePath, tt.secrets)
 			if ((got == nil) && tt.wantError) || ((got != nil) && !tt.wantError) {
-				t.Errorf("unexpected result: parseTemplates() = %v, want %v", got != nil, tt.wantError)
+				t.Errorf("unexpected result: renderSecretsIntoTemplates() = %v, want %v", got != nil, tt.wantError)
 			}
 			if !tt.wantError {
 				content, err := os.ReadFile(testdir + "/etc/config")

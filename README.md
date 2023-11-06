@@ -10,29 +10,29 @@ All secrets needed by the application are also mounted to the init container, al
 
 ## Development
 The example inside `examples/simple` can be used for development when operating locally. Example docker command for local use is:
-`docker run -v $(pwd)/tests/secrets:/etc/secrets -v $(pwd)/examples/simple/templates:/etc/templates -v $(pwd)/examples/rendered:/etc/rendered docker.io/library/k8s-multi-secret-to-file:local`
-Make sure the directory mounted to `/etc/rendered` already exists.
+`docker run -v $(pwd)/tests/secrets:/var/run/secrets/spreadgroup.com/multi-secret/secrets -v $(pwd)/examples/simple/templates:/var/run/secrets/spreadgroup.com/multi-secret/templates -v $(pwd)/examples/rendered:/var/run/secrets/spreadgroup.com/multi-secret/rendered docker.io/library/k8s-multi-secret-to-file:local`
+Make sure the directory mounted to `/var/run/secrets/spreadgroup.com/multi-secret/rendered` already exists.
 ### CLI parameters
 | Parameter               | Default value  | Description                                                                                                                          |
 |-------------------------|:--------------:|--------------------------------------------------------------------------------------------------------------------------------------|
 | continue-on-missing-key |     false      | Templating of configfiles fails if a (secret) key is missing. This flag allows to continue on missing keys.                          |
-| left-limiter            |       {{       | Left limiter for internal templating. Change if this limiter conflicts with your config format.                                      |
-| right-limiter           |       }}       | Right limiter for internal templating. Change if this limiter conflicts with your config format.                                     |
-| secret-path           |  /etc/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
-| target-base-dir           | /etc/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
-| template-base-dir           | /etc/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
+| left-delimiter          |       {{       | Left delimiter for internal templating. Change if this delimiter conflicts with your config format.                                  |
+| right-delimiter         |       }}       | Right delimiter for internal templating. Change if this delimiter conflicts with your config format.                                 |
+| secret-path             |  /etc/secrets  | Path were secrets are read from. Can be changed for local development or testing. Should not matter when using the container.        |
+| target-base-dir         | /etc/rendered  | Path were rendered files are stored. Can be changed for local development or testing. Should not matter when using the container.    |
+| template-base-dir       | /etc/templates | Path were template files are read from. Can be changed for local development or testing. Should not matter when using the container. |
 
 ## Setup
 A working example can be found in `examples/k8s`. The files inside manifests directory can be deployed to a Kubernetes cluster.
 
-1. wrap a configfile inside a configmap, and use `{{ .secretKey }}` as placeholder
+1. wrap a configfile inside a configmap, and use `{{ index .Secrets "<secret name>" "<secret key>" }}` as placeholder. (using the `index` function here to allow special chars in secret names and keys)
 
     ```yaml
     ...
     data:
       secret-config: |-
-        key1={{ .secret1 }}
-        key2={{ .secret2 }}
+        key1={{ index .Secrets "apache-demo" "secret1" }}
+        key2={{ index .Secrets "apache-demo" "secret2" }}
     ...
     ```
 
@@ -57,7 +57,7 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ...
     ```
 
-4. provide secrets as files to the init container. `/etc/secrets` is the default secret path inside the init-container. For each Secret, configure the volumes:
+4. provide secrets as files to the init container. `/var/run/secrets/spreadgroup.com/multi-secret/secrets` is the default secret path inside the init-container. For each Secret, configure the volumes:
     ```yaml
     ...
     volumes:
@@ -72,7 +72,7 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     volumeMounts:
-      - mountPath: /etc/secrets/apache-demo
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/secrets/apache-demo
         name: apache-demo
         readOnly: true
     ...
@@ -96,15 +96,15 @@ A working example can be found in `examples/k8s`. The files inside manifests dir
     ```yaml
     ...
     volumeMounts:
-      - mountPath: /etc/rendered
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/rendered
         name: init-share
-      - mountPath: /etc/templates/path/to/secret/config
+      - mountPath: /var/run/secrets/spreadgroup.com/multi-secret/templates/path/to/secret/config
         name: configmap
         subPath: secret-config
     ...
     ```
 
-    `/etc/templates` and `/etc/rendered` are the default paths for templates and the results, this can be configured, if necessary
+    `/var/run/secrets/spreadgroup.com/multi-secret/templates` and `/var/run/secrets/spreadgroup.com/multi-secret/rendered` are the default paths for templates and the results, this can be configured, if necessary
 
 7. mount the rendered config file to the application container
 
